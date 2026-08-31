@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  voice-agent:
+    build: .
+    container_name: voice-agent
+    restart: always
+    env_file:
+      - .env
+
+  dashboard:
+    image: nginx:alpine
+    container_name: voice-agent-dashboard
+    restart: always
+    ports:
+      - "8090:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
