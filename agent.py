@@ -56,8 +56,9 @@ from config import (
     MAX_ENDPOINTING_DELAY,
     MAX_TOKENS,
     MIN_ENDPOINTING_DELAY,
-    OPENAI_LLM_MODEL,
-    OPENAI_TEMPERATURE,
+    GROQ_LLM_MODEL,
+    GROQ_TEMPERATURE,
+    GROQ_API_KEY,
     SARVAM_STT_MODEL,
     SARVAM_TTS_MODEL,
     SARVAM_TTS_VOICE,
@@ -112,8 +113,10 @@ def _build_session(language: str) -> AgentSession:
             sample_rate=AUDIO_SAMPLE_RATE,  # 8 kHz telephony
         ),
         llm=openai.LLM(
-            model=OPENAI_LLM_MODEL,        # gpt-4.1-mini
-            temperature=OPENAI_TEMPERATURE,
+            model=GROQ_LLM_MODEL,
+            api_key=GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+            temperature=GROQ_TEMPERATURE,
             max_completion_tokens=MAX_TOKENS,  # cap reply length -> lower latency
         ),
         tts=sarvam.TTS(
@@ -121,7 +124,7 @@ def _build_session(language: str) -> AgentSession:
             target_language_code=bcp47,
             speaker=SARVAM_TTS_VOICE,      # "simran"
         ),
-        tools=AppointmentTools().to_tools(),
+        tools=[],  # Disabled tools as requested
         min_endpointing_delay=MIN_ENDPOINTING_DELAY,  # 0.15 s
         max_endpointing_delay=MAX_ENDPOINTING_DELAY,  # 1.0 s
     )
@@ -230,7 +233,7 @@ async def entrypoint(ctx: JobContext) -> None:
     session = _build_session(DEFAULT_LANGUAGE)
     session.on("metrics_collected", _make_metrics_handler(ctx.room.name))
 
-    await session.start(agent=GreeterAgent(), room=ctx.room)
+    await session.start(agent=LangAgent(DEFAULT_LANGUAGE), room=ctx.room)
 
     # Speak the opening greeting. update_agent (on language switch) is silent, but
     # the FIRST agent must be told to greet too -- so we say it explicitly here.
