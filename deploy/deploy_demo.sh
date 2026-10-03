@@ -69,8 +69,8 @@ apt-get install -y -qq nginx certbot python3-certbot-nginx
 
 # ── 2. Firewall: open 80 + 443 ────────────────────────────────────────────────
 say "Opening firewall ports 80 and 443…"
-ufw allow 80/tcp  comment 'HTTP (Let'\''s Encrypt ACME challenge)'
-ufw allow 443/tcp comment 'HTTPS (Khyra demo WSS)'
+ufw allow 80/tcp
+ufw allow 443/tcp
 ufw --force enable
 ok "Ports 80 and 443 open"
 
