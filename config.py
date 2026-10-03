@@ -37,11 +37,16 @@ SARVAM_TTS_MODEL = os.getenv("SARVAM_TTS_MODEL", "bulbul:v3")
 SARVAM_TTS_VOICE = os.getenv("SARVAM_TTS_VOICE", "simran")
 
 
-# --- Groq (LLM) ------------------------------------------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")
+# --- LLM Provider (Groq / OpenAI) -------------------------------------------
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "llama-3.1-8b-instant")
 GROQ_TEMPERATURE = float(os.getenv("GROQ_TEMPERATURE", "0.3"))
-# Hard cap on reply length. Short replies = lower TTS/LLM latency on a phone call.
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_LLM_MODEL = os.getenv("OPENAI_LLM_MODEL", "gpt-4.1-mini")
+OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
+
+# Hard cap on reply length. Short replies = lower TTS/LLM latency.
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "140"))
 
 
@@ -53,13 +58,19 @@ DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")
 VAD_MIN_SILENCE_MS = int(os.getenv("VAD_MIN_SILENCE_MS", "150"))
 VAD_MIN_SILENCE_S = VAD_MIN_SILENCE_MS / 1000.0
 
-# Endpointing window (how long to wait for the caller to resume before treating
-# the turn as finished). Tuned tight for snappy phone turns.
+# Endpointing window (how long to wait for the user to resume before treating
+# the turn as finished). Tuned tight for snappy turns.
 MIN_ENDPOINTING_DELAY = float(os.getenv("MIN_ENDPOINTING_DELAY", "0.15"))
 MAX_ENDPOINTING_DELAY = float(os.getenv("MAX_ENDPOINTING_DELAY", "1.0"))
 
-# Telephony sample rate. 8 kHz end-to-end is the latency recipe for phone audio.
-AUDIO_SAMPLE_RATE = 8000
+# Audio sample rate. WebRTC defaults to wideband 16 kHz for crisp microphone audio.
+# Can be set to 8000 for legacy telephony if needed.
+AUDIO_SAMPLE_RATE = int(os.getenv("AUDIO_SAMPLE_RATE", "16000"))
+
+
+# --- Web Demo Server ---------------------------------------------------------
+WEB_SERVER_HOST = os.getenv("WEB_SERVER_HOST", "0.0.0.0")
+WEB_SERVER_PORT = int(os.getenv("WEB_SERVER_PORT", "8080"))
 
 
 # --- Telephony / transfer ----------------------------------------------------
@@ -78,3 +89,32 @@ BCP47: dict[str, str] = {
     "ml": "ml-IN",
 }
 SUPPORTED_LANGUAGES: list[str] = list(BCP47.keys())
+
+
+# --- Demo WebSocket Config (Website Live Demo) --------------------------------
+DEMO_WS_PORT = int(os.getenv("DEMO_WS_PORT", "8000"))
+
+# Map frontend voice_id values to actual Sarvam TTS (bulbul:v3) speaker names.
+# Available speakers: meera, pavithra, maitreyi, simran, arvind, amol, karthik,
+# abhishek, arjun, amartya.
+VOICE_MAP: dict[str, str] = {
+    "voice_1": "meera",       # Professional Female
+    "voice_2": "simran",      # Warm Female
+    "voice_3": "pavithra",    # Direct Female
+    "voice_4": "maitreyi",    # Balanced Female
+    "voice_5": "amartya",     # Calm Female (fallback)
+    "voice_6": "arvind",      # Executive Male
+    "voice_7": "amol",        # Warm Male
+    "voice_8": "karthik",     # Neutral Male
+    "voice_9": "abhishek",    # Authoritative Male
+    "voice_10": "arjun",      # Conversational Male
+}
+DEFAULT_DEMO_VOICE = "simran"
+
+# BCP-47 language codes for the demo. The frontend sends en / en-US / en-GB;
+# Sarvam uses en-IN for all English variants.
+DEMO_BCP47: dict[str, str] = {
+    "en": "en-IN",
+    "en-US": "en-IN",
+    "en-GB": "en-IN",
+}

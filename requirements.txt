@@ -26,3 +26,8 @@ openai>=1.30
 python-dotenv
 httpx
 certifi
+
+# Web server for browser demo & token management
+fastapi>=0.110.0
+uvicorn>=0.28.0
+

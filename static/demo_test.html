@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Khyra AI — WebSocket Demo Test</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0d14;
+      --surface: #111520;
+      --surface2: #181d2e;
+      --border: #252c42;
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #6366f1, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header p { color: var(--muted); font-size: 0.875rem; margin-top: 6px; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .badge-test { background: #1e293b; color: var(--yellow); border: 1px solid #334155; }
+
+    .layout {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    select, input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color .2s;
+      cursor: pointer;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--accent); }
+    select option { background: #1e293b; }
+
+    .field-group { margin-bottom: 4px; }
+
+    /* Mic level meter */
+    .meter-wrap {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    #mic-meter {
+      height: 100%;
+      width: 0%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--green), #84cc16);
+      transition: width .08s ease;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { opacity: .88; }
+    .btn-sm { padding: 7px 14px; width: auto; font-size: .8rem; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+
+    /* Status indicator */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      margin-bottom: 14px;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-idle { background: var(--muted); }
+    .dot-connecting { background: var(--yellow); animation: pulse .8s infinite alternate; }
+    .dot-ready { background: var(--green); animation: pulse .8s infinite alternate; }
+    .dot-listening { background: var(--green); animation: pulse .4s infinite alternate; }
+    .dot-speaking { background: var(--accent); animation: pulse .5s infinite alternate; }
+    .dot-processing { background: var(--yellow); animation: pulse .6s infinite alternate; }
+    .dot-error { background: var(--red); }
+
+    @keyframes pulse {
+      from { opacity: 1; }
+      to { opacity: .3; }
+    }
+
+    /* Orb */
+    .orb-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0;
+    }
+    .orb {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #6366f1, #1e1b4b);
+      box-shadow: 0 0 0 0 rgba(99,102,241,.5);
+      transition: all .3s ease;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    .orb.listening {
+      animation: orb-pulse 1.2s ease-in-out infinite;
+      box-shadow: 0 0 20px rgba(34,197,94,.6);
+      background: radial-gradient(circle at 35% 35%, #22c55e, #14532d);
+    }
+    .orb.speaking {
+      animation: orb-pulse .8s ease-in-out infinite;
+      box-shadow: 0 0 20px rgba(99,102,241,.8);
+    }
+    .orb.processing {
+      box-shadow: 0 0 15px rgba(245,158,11,.6);
+      background: radial-gradient(circle at 35% 35%, #f59e0b, #78350f);
+    }
+
+    @keyframes orb-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+    }
+
+    /* Right column: transcript */
+    .transcript-panel {
+      display: flex;
+      flex-direction: column;
+      height: 560px;
+    }
+    .transcript-panel h2 { flex-shrink: 0; }
+
+    #transcript {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 4px 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .msg {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      animation: fade-in .2s ease;
+    }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+    .msg-user {
+      align-self: flex-end;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-right-radius: 3px;
+      color: var(--text);
+    }
+    .msg-agent {
+      align-self: flex-start;
+      background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.1));
+      border: 1px solid rgba(99,102,241,.3);
+      border-bottom-left-radius: 3px;
+      color: var(--text);
+    }
+    .msg-meta {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 3px;
+      font-weight: 500;
+    }
+    .msg-system {
+      align-self: center;
+      background: none;
+      border: none;
+      font-size: 0.73rem;
+      color: var(--muted);
+      padding: 2px 0;
+    }
+    .msg-error {
+      align-self: center;
+      background: rgba(239,68,68,.12);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #fca5a5;
+      border-radius: 8px;
+      font-size: .8rem;
+      max-width: 100%;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      gap: 8px;
+      text-align: center;
+    }
+    .empty-state span { font-size: 2rem; }
+
+    /* ws url field */
+    .ws-url-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .ws-url-row input { margin-bottom: 0; flex: 1; }
+
+    /* divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    .hint { font-size: .72rem; color: var(--muted); margin-top: -10px; margin-bottom: 12px; }
+
+    /* audio bars (decorative speaking indicator) */
+    .audio-bars {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+      height: 20px;
+      justify-content: center;
+      margin: 8px 0;
+    }
+    .audio-bars span {
+      width: 3px;
+      border-radius: 2px;
+      background: var(--accent);
+      animation: bar-bounce .6s ease-in-out infinite alternate;
+    }
+    .audio-bars span:nth-child(1) { height: 6px; animation-delay: 0s; }
+    .audio-bars span:nth-child(2) { height: 14px; animation-delay: .1s; }
+    .audio-bars span:nth-child(3) { height: 20px; animation-delay: .2s; }
+    .audio-bars span:nth-child(4) { height: 14px; animation-delay: .1s; }
+    .audio-bars span:nth-child(5) { height: 6px; animation-delay: 0s; }
+    .audio-bars { display: none; }
+    .audio-bars.active { display: flex; }
+
+    @keyframes bar-bounce {
+      from { transform: scaleY(.4); }
+      to { transform: scaleY(1); }
+    }
+
+    /* Debug log */
+    #debug-log {
+      background: #050709;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #94a3b8;
+      padding: 10px;
+      height: 100px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    .log-info { color: #64748b; }
+    .log-ok { color: #22c55e; }
+    .log-warn { color: #f59e0b; }
+    .log-err { color: #ef4444; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Khyra AI — WebSocket Demo Tester</h1>
+  <p>Test all 13 domains · mic input · audio playback · live transcript &nbsp;<span class="badge badge-test">local test</span></p>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Controls -->
+  <div>
+    <!-- WS URL -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>Connection</h2>
+      <label>WebSocket URL</label>
+      <div class="ws-url-row">
+        <input type="text" id="ws-url" value="ws://localhost:8080/ws" />
+      </div>
+
+      <div class="status-bar">
+        <div class="dot dot-idle" id="status-dot"></div>
+        <span id="status-text">Disconnected</span>
+      </div>
+
+      <div class="orb-wrap">
+        <div class="orb" id="orb">🎙️</div>
+      </div>
+
+      <div class="audio-bars" id="audio-bars">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-connect">⚡ Connect &amp; Start</button>
+        <button class="btn btn-danger btn-sm" id="btn-disconnect" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Config -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>Demo Configuration</h2>
+
+      <div class="field-group">
+        <label>Role</label>
+        <select id="sel-role">
+          <option value="support_line">Customer Support &amp; Operations</option>
+          <option value="lead_followup">Lead Qualification &amp; Sales</option>
+          <option value="front_desk">Front Desk &amp; Coordination</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label>Domain</label>
+        <select id="sel-domain"></select>
+      </div>
+
+      <div class="field-group">
+        <label>Language</label>
+        <select id="sel-language">
+          <option value="en">English (Global)</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label>Voice</label>
+        <select id="sel-voice">
+          <option value="voice_1">Voice 01 — Professional (Female)</option>
+          <option value="voice_2" selected>Voice 02 — Warm (Female)</option>
+          <option value="voice_3">Voice 03 — Direct (Female)</option>
+          <option value="voice_4">Voice 04 — Balanced (Female)</option>
+          <option value="voice_5">Voice 05 — Calm (Female)</option>
+          <option value="voice_6">Voice 06 — Executive (Male)</option>
+          <option value="voice_7">Voice 07 — Warm (Male)</option>
+          <option value="voice_8">Voice 08 — Neutral (Male)</option>
+          <option value="voice_9">Voice 09 — Authoritative (Male)</option>
+          <option value="voice_10">Voice 10 — Conversational (Male)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Mic test -->
+    <div class="card">
+      <h2>Microphone</h2>
+      <label>Input level</label>
+      <div class="meter-wrap"><div id="mic-meter"></div></div>
+      <p class="hint">Connect first — meter activates when listening</p>
+      <hr />
+      <h2 style="margin-bottom:10px">Debug Log</h2>
+      <div id="debug-log"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Transcript -->
+  <div class="card transcript-panel">
+    <h2 style="display:flex;align-items:center;justify-content:space-between">
+      Live Transcript
+      <button class="btn btn-sm" onclick="clearTranscript()" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border)">Clear</button>
+    </h2>
+    <div id="transcript">
+      <div class="empty-state">
+        <span>💬</span>
+        <div>Choose your role &amp; domain, then click <strong>Connect &amp; Start</strong></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────────────────────
+// Domain map
+const DOMAIN_MAP = {
+  support_line: [
+    { id: 'saas_product_support',       label: 'Business Operations & SaaS' },
+    { id: 'access_management_support',  label: 'Account & Access Services' },
+    { id: 'devops_support',             label: 'Technical Operations Support' },
+  ],
+  lead_followup: [
+    { id: 'real_estate',     label: 'Commercial & Residential Property' },
+    { id: 'it_projects',     label: 'Enterprise Technology Projects' },
+    { id: 'ai_voice_services', label: 'Operational AI Services' },
+  ],
+  front_desk: [
+    { id: 'general_clinic',    label: 'Medical & Healthcare Center' },
+    { id: 'hotel_resort',      label: 'Hotels & Hospitality' },
+    { id: 'dental_clinic',     label: 'Dental Clinic' },
+    { id: 'veterinary_clinic', label: 'Veterinary Clinic' },
+    { id: 'spa_salon',         label: 'Spa & Wellness' },
+    { id: 'cosmetic_clinic',   label: 'Aesthetic Clinic' },
+    { id: 'therapist_clinic',  label: 'Consultation & Therapy' },
+  ],
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// UI elements
+const selRole   = document.getElementById('sel-role');
+const selDomain = document.getElementById('sel-domain');
+const selLang   = document.getElementById('sel-language');
+const selVoice  = document.getElementById('sel-voice');
+const btnConnect    = document.getElementById('btn-connect');
+const btnDisconnect = document.getElementById('btn-disconnect');
+const statusDot  = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const orb        = document.getElementById('orb');
+const audioBars  = document.getElementById('audio-bars');
+const transcript = document.getElementById('transcript');
+const micMeter   = document.getElementById('mic-meter');
+const debugLog   = document.getElementById('debug-log');
+const wsUrl      = document.getElementById('ws-url');
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Populate domains on role change
+function populateDomains() {
+  const domains = DOMAIN_MAP[selRole.value] || [];
+  selDomain.innerHTML = domains.map(d =>
+    `<option value="${d.id}">${d.label}</option>`
+  ).join('');
+}
+selRole.addEventListener('change', populateDomains);
+populateDomains();
+
+// ──────────────────────────────────────────────────────────────────────────────
+// State
+let ws = null;
+let audioCtx = null;
+let mediaStream = null;
+let scriptProcessor = null;
+let analyser = null;
+let state = 'idle';    // idle | connecting | ready | listening | processing | speaking | error
+let audioQueue = [];   // queued PCM Int16 chunk bytes while speaking
+let isPlaying = false;
+let silenceTimer = null;
+const SILENCE_MS    = 1200;  // ms of silence before we send audio_end
+const SILENCE_THRESH = 0.01; // RMS threshold — below this = silence
+let sendingAudio = false;    // true while user is speaking and we're buffering
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Debug log
+function dbg(msg, cls = 'log-info') {
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  debugLog.appendChild(line);
+  debugLog.scrollTop = debugLog.scrollHeight;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Status + orb
+function setStatus(s, label, orbClass, orbEmoji) {
+  state = s;
+  statusDot.className = `dot dot-${s}`;
+  statusText.textContent = label;
+  orb.className = `orb ${orbClass || ''}`;
+  orb.textContent = orbEmoji || '🎙️';
+  audioBars.classList.toggle('active', s === 'speaking');
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Transcript helpers
+function clearTranscript() {
+  transcript.innerHTML = `<div class="empty-state"><span>💬</span><div>Transcript cleared</div></div>`;
+}
+
+function addMsg(text, role, name) {
+  // Remove empty state
+  const empty = transcript.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  if (role === 'user') {
+    div.className = 'msg msg-user';
+    div.innerHTML = `<span class="msg-meta">You</span>${escHtml(text)}`;
+  } else if (role === 'agent') {
+    div.className = 'msg msg-agent';
+    div.innerHTML = `<span class="msg-meta">Agent</span>${escHtml(text)}`;
+  } else if (role === 'system') {
+    div.className = 'msg msg-system';
+    div.textContent = text;
+  } else if (role === 'error') {
+    div.className = 'msg msg-error';
+    div.innerHTML = `⚠️ ${escHtml(text)}`;
+  }
+  transcript.appendChild(div);
+  transcript.scrollTop = transcript.scrollHeight;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PCM Int16 → WAV → AudioBuffer for browser playback
+function pcmInt16ToAudioBuffer(int16Array, sampleRate) {
+  const floatData = new Float32Array(int16Array.length);
+  for (let i = 0; i < int16Array.length; i++) {
+    floatData[i] = int16Array[i] / 32768;
+  }
+  const buf = audioCtx.createBuffer(1, floatData.length, sampleRate);
+  buf.copyToChannel(floatData, 0);
+  return buf;
+}
+
+// Queue-based PCM audio playback
+let playhead = audioCtx ? audioCtx.currentTime : 0;
+
+async function enqueueAudioChunk(arrayBuffer) {
+  if (!audioCtx) return;
+  const int16 = new Int16Array(arrayBuffer);
+  const audioBuf = pcmInt16ToAudioBuffer(int16, 16000);
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuf;
+  source.connect(audioCtx.destination);
+
+  const now = audioCtx.currentTime;
+  if (playhead < now) playhead = now;
+  source.start(playhead);
+  playhead += audioBuf.duration;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Connect flow
+async function connect() {
+  if (ws) disconnect();
+
+  setStatus('connecting', 'Connecting…', '', '⏳');
+  dbg(`Connecting to ${wsUrl.value}…`, 'log-info');
+
+  // Init audio context
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    playhead = audioCtx.currentTime;
+  } catch (e) {
+    dbg(`AudioContext error: ${e.message}`, 'log-err');
+    addMsg('Could not create AudioContext: ' + e.message, 'error');
+    setStatus('error', 'Audio error', '', '❌');
+    return;
+  }
+
+  // Request mic
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+    dbg('Microphone access granted', 'log-ok');
+  } catch (e) {
+    dbg(`Mic error: ${e.message}`, 'log-err');
+    addMsg('Microphone access denied: ' + e.message, 'error');
+    setStatus('error', 'Mic denied', '', '❌');
+    return;
+  }
+
+  // Wire up mic → analyser → ScriptProcessor
+  const source = audioCtx.createMediaStreamSource(mediaStream);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  scriptProcessor = audioCtx.createScriptProcessor(4096, 1, 1);
+  source.connect(analyser);
+  analyser.connect(scriptProcessor);
+  scriptProcessor.connect(audioCtx.destination);
+
+  // Mic level meter
+  const meterBuf = new Uint8Array(analyser.frequencyBinCount);
+  function updateMeter() {
+    if (!analyser) return;
+    analyser.getByteFrequencyData(meterBuf);
+    const avg = meterBuf.reduce((a, b) => a + b, 0) / meterBuf.length;
+    micMeter.style.width = Math.min(100, avg * 2) + '%';
+    requestAnimationFrame(updateMeter);
+  }
+  updateMeter();
+
+  // Open WebSocket
+  try {
+    ws = new WebSocket(wsUrl.value);
+    ws.binaryType = 'arraybuffer';
+  } catch (e) {
+    dbg(`WS open error: ${e.message}`, 'log-err');
+    setStatus('error', 'WS error', '', '❌');
+    return;
+  }
+
+  ws.onopen = () => {
+    dbg('WebSocket connected — sending init', 'log-ok');
+    const initMsg = {
+      type: 'init',
+      role: selRole.value,
+      domain: selDomain.value,
+      language: selLang.value,
+      voice_id: selVoice.value,
+    };
+    dbg(`init → ${JSON.stringify(initMsg)}`, 'log-info');
+    ws.send(JSON.stringify(initMsg));
+    addMsg(`Connected · role=${initMsg.role} · domain=${initMsg.domain} · lang=${initMsg.language} · voice=${initMsg.voice_id}`, 'system');
+  };
+
+  ws.onmessage = async (event) => {
+    // Binary = PCM audio chunk from agent
+    if (event.data instanceof ArrayBuffer) {
+      await enqueueAudioChunk(event.data);
+      return;
+    }
+
+    // JSON message
+    let msg;
+    try { msg = JSON.parse(event.data); }
+    catch { dbg(`Unparseable WS message: ${event.data}`, 'log-warn'); return; }
+
+    dbg(`← ${JSON.stringify(msg)}`, 'log-info');
+
+    if (msg.type === 'ready') {
+      setStatus('listening', 'Listening…', 'listening', '🎙️');
+      addMsg('Agent is ready — speak now!', 'system');
+      enableMicCapture();
+    }
+    else if (msg.type === 'response_text') {
+      setStatus('speaking', 'Agent speaking…', 'speaking', '🔊');
+      addMsg(msg.text, 'agent');
+    }
+    else if (msg.type === 'audio_end') {
+      // Wait a tick for audio to flush, then go back to listening
+      setTimeout(() => {
+        if (state !== 'idle') {
+          setStatus('listening', 'Listening…', 'listening', '🎙️');
+          playhead = audioCtx ? audioCtx.currentTime : 0;
+        }
+      }, 400);
+    }
+    else if (msg.type === 'error') {
+      addMsg(msg.message || 'Unknown error', 'error');
+      dbg(`Server error: ${msg.message}`, 'log-err');
+    }
+  };
+
+  ws.onclose = (ev) => {
+    dbg(`WS closed: code=${ev.code}`, 'log-warn');
+    if (state !== 'idle') {
+      setStatus('idle', 'Disconnected', '', '🎙️');
+      addMsg('Connection closed.', 'system');
+    }
+    cleanupMic();
+  };
+
+  ws.onerror = () => {
+    dbg('WebSocket error', 'log-err');
+    setStatus('error', 'Connection error', '', '❌');
+    addMsg('WebSocket error — is the server running?', 'error');
+  };
+
+  btnConnect.disabled = true;
+  btnDisconnect.disabled = false;
+  selRole.disabled = true;
+  selDomain.disabled = true;
+  selLang.disabled = true;
+  selVoice.disabled = true;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mic capture — VAD by RMS silence detection
+function enableMicCapture() {
+  if (!scriptProcessor || !ws) return;
+  sendingAudio = false;
+
+  scriptProcessor.onaudioprocess = (e) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (state === 'speaking' || state === 'processing') return;
+
+    const input = e.inputBuffer.getChannelData(0);
+
+    // RMS level
+    let sum = 0;
+    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    const rms = Math.sqrt(sum / input.length);
+
+    const isSpeaking = rms > SILENCE_THRESH;
+
+    if (isSpeaking) {
+      // Clear any pending silence timer
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+
+      if (!sendingAudio) {
+        sendingAudio = true;
+        dbg('🎤 User speech started', 'log-ok');
+        setStatus('listening', 'Listening (speaking)…', 'listening', '🎙️');
+      }
+
+      // Convert float32 → int16 and send
+      const int16 = new Int16Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        int16[i] = Math.max(-32768, Math.min(32767, Math.round(input[i] * 32767)));
+      }
+      ws.send(int16.buffer);
+    } else {
+      if (sendingAudio && !silenceTimer) {
+        silenceTimer = setTimeout(() => {
+          if (!sendingAudio) return;
+          sendingAudio = false;
+          silenceTimer = null;
+          dbg('🔇 Silence detected — sending audio_end', 'log-info');
+          setStatus('processing', 'Processing…', 'processing', '⏳');
+          ws.send(JSON.stringify({ type: 'audio_end' }));
+        }, SILENCE_MS);
+      }
+    }
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Disconnect / cleanup
+function disconnect() {
+  setStatus('idle', 'Disconnected', '', '🎙️');
+  cleanupMic();
+  if (ws) { try { ws.close(); } catch {} ws = null; }
+  btnConnect.disabled = false;
+  btnDisconnect.disabled = true;
+  selRole.disabled = false;
+  selDomain.disabled = false;
+  selLang.disabled = false;
+  selVoice.disabled = false;
+  micMeter.style.width = '0%';
+  dbg('Disconnected', 'log-warn');
+}
+
+function cleanupMic() {
+  if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+  if (scriptProcessor) { try { scriptProcessor.disconnect(); scriptProcessor.onaudioprocess = null; } catch {} scriptProcessor = null; }
+  if (analyser) { try { analyser.disconnect(); } catch {} analyser = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Button handlers
+btnConnect.addEventListener('click', connect);
+btnDisconnect.addEventListener('click', disconnect);
+
+// Auto-update domain on role change only if not connected
+selRole.addEventListener('change', () => { if (!ws) populateDomains(); });
+
+dbg('Demo tester ready — click Connect & Start', 'log-ok');
+</script>
+</body>
+</html>

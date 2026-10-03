@@ -31,3 +31,7 @@ dashboard/*.html
 Thumbs.db
 .idea/
 .vscode/
+.sf/
+
+# --- Runtime logs ---
+logs/

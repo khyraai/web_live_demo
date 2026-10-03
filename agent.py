@@ -59,6 +59,10 @@ from config import (
     GROQ_LLM_MODEL,
     GROQ_TEMPERATURE,
     GROQ_API_KEY,
+    OPENAI_API_KEY,
+    OPENAI_LLM_MODEL,
+    OPENAI_TEMPERATURE,
+    SARVAM_API_KEY,
     SARVAM_STT_MODEL,
     SARVAM_TTS_MODEL,
     SARVAM_TTS_VOICE,
@@ -93,10 +97,29 @@ CONFIRMATIONS: dict[str, str] = {
 
 
 # --- pipeline wiring ---------------------------------------------------------
+def _build_llm() -> openai.LLM:
+    """Build the LLM instance using Groq if configured, otherwise standard OpenAI."""
+    if GROQ_API_KEY and GROQ_API_KEY not in ("YOUR_GROQ_API_KEY", ""):
+        return openai.LLM(
+            model=GROQ_LLM_MODEL,
+            api_key=GROQ_API_KEY,
+            base_url="https://api.groq.com/openai/v1",
+            temperature=GROQ_TEMPERATURE,
+            max_completion_tokens=MAX_TOKENS,
+        )
+    key = OPENAI_API_KEY if (OPENAI_API_KEY and OPENAI_API_KEY != "YOUR_OPENAI_API_KEY") else "placeholder-key"
+    return openai.LLM(
+        model=OPENAI_LLM_MODEL,
+        api_key=key,
+        temperature=OPENAI_TEMPERATURE,
+        max_completion_tokens=MAX_TOKENS,
+    )
+
+
 def _build_session(language: str) -> AgentSession:
     """Wire the whole cascade for a starting language and return the session.
 
-    Silero VAD + Sarvam STT/TTS locked to `language`, OpenAI LLM, Maya's tools,
+    Silero VAD + Sarvam STT/TTS locked to `language`, OpenAI/Groq LLM, Maya's tools,
     and tight endpointing. The session owns the tools and default pipeline;
     each LangAgent later overrides only STT + TTS to relock the language.
     """
@@ -110,19 +133,15 @@ def _build_session(language: str) -> AgentSession:
             model=SARVAM_STT_MODEL,       # saaras:v3
             mode="codemix",               # keep English words spoken mid-sentence
             language=bcp47,
-            sample_rate=AUDIO_SAMPLE_RATE,  # 8 kHz telephony
+            sample_rate=AUDIO_SAMPLE_RATE,  # 16 kHz WebRTC / 8 kHz telephony
+            api_key=SARVAM_API_KEY,
         ),
-        llm=openai.LLM(
-            model=GROQ_LLM_MODEL,
-            api_key=GROQ_API_KEY,
-            base_url="https://api.groq.com/openai/v1",
-            temperature=GROQ_TEMPERATURE,
-            max_completion_tokens=MAX_TOKENS,  # cap reply length -> lower latency
-        ),
+        llm=_build_llm(),
         tts=sarvam.TTS(
             model=SARVAM_TTS_MODEL,        # bulbul:v3
             target_language_code=bcp47,
             speaker=SARVAM_TTS_VOICE,      # "simran"
+            api_key=SARVAM_API_KEY,
         ),
         tools=[],  # Disabled tools as requested
         min_endpointing_delay=MIN_ENDPOINTING_DELAY,  # 0.15 s
@@ -185,11 +204,13 @@ class LangAgent(Agent):
                 mode="codemix",
                 language=bcp47,
                 sample_rate=AUDIO_SAMPLE_RATE,
+                api_key=SARVAM_API_KEY,
             ),
             tts=sarvam.TTS(
                 model=SARVAM_TTS_MODEL,
                 target_language_code=bcp47,
                 speaker=SARVAM_TTS_VOICE,
+                api_key=SARVAM_API_KEY,
             ),
         )
         self.code = code
@@ -229,6 +250,12 @@ def _make_metrics_handler(call_id: str):
 # --- entrypoint --------------------------------------------------------------
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
+
+    # In browser WebRTC sessions, wait for the participant to connect before speaking greeting
+    if not ctx.is_fake_job:
+        log.info("Agent connected to room %s. Waiting for participant...", ctx.room.name)
+        participant = await ctx.wait_for_participant()
+        log.info("Participant connected: identity=%s name=%s", participant.identity, participant.name)
 
     session = _build_session(DEFAULT_LANGUAGE)
     session.on("metrics_collected", _make_metrics_handler(ctx.room.name))

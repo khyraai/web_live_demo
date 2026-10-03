@@ -1,0 +1,58 @@
+# ==============================================================================
+# khyra-demo.service — systemd unit for the Khyra Website Live Demo Server.
+# ------------------------------------------------------------------------------
+# This runs the FastAPI web server (server.py) with the /ws WebSocket endpoint.
+# It runs ALONGSIDE the existing voice-agent service — they are separate.
+#
+# Install:
+#     sudo cp /opt/khyra-demo/deploy/khyra-demo.service /etc/systemd/system/
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now khyra-demo
+#
+# Logs:
+#     journalctl -u khyra-demo -f
+#
+# Restart after code update:
+#     sudo systemctl restart khyra-demo
+# ==============================================================================
+
+[Unit]
+Description=Khyra AI — Website Live Demo WebSocket Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/voice-agent
+EnvironmentFile=/opt/voice-agent/.env
+
+# Run uvicorn on localhost:8080 — Nginx proxies 443 → 8080
+ExecStart=/opt/voice-agent/.venv/bin/python -m uvicorn server:app \
+    --host 127.0.0.1 \
+    --port 8080 \
+    --workers 1 \
+    --log-level info
+
+Restart=always
+RestartSec=5
+
+# --- Logging ------------------------------------------------------------------
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=khyra-demo
+
+# --- Resource limits ----------------------------------------------------------
+# Each live WebSocket session holds a mic stream + TTS audio in memory.
+# 2 G is comfortable for ~50 concurrent demo users on this VPS.
+MemoryMax=2G
+
+# --- Hardening ----------------------------------------------------------------
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+# Allow writes to logs dir (metrics JSONL)
+ReadWritePaths=/opt/voice-agent/logs
+
+[Install]
+WantedBy=multi-user.target
