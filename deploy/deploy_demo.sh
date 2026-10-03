@@ -31,7 +31,7 @@ set -euo pipefail
 # ── Config ────────────────────────────────────────────────────────────────────
 VPS_IP="87.76.199.44"
 VPS_USER="root"                   # change to your SSH user if not root
-DOMAIN="khyraai.demo"
+DOMAIN="demo.khyraai.com"
 APP_DIR="/opt/voice-agent"
 VENV="${APP_DIR}/.venv"
 NGINX_AVAILABLE="/etc/nginx/sites-available/khyraai-demo"
@@ -107,7 +107,7 @@ cat > "${NGINX_AVAILABLE}" <<'NGINX_HTTP'
 server {
     listen 80;
     listen [::]:80;
-    server_name khyraai.demo;
+    server_name demo.khyraai.com;
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
