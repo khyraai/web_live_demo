@@ -372,8 +372,14 @@ async def _demo_tts(text: str, voice: str, language: str) -> bytes:
                 "enable_preprocessing": True,
             },
         )
-        resp.raise_for_status()
-        audio_b64 = resp.json()["audios"][0]
+        if resp.status_code != 200:
+            log.error("Sarvam TTS error %s: %s", resp.status_code, resp.text[:300])
+            resp.raise_for_status()
+        data = resp.json()
+        if "audios" not in data or not data["audios"]:
+            log.error("Sarvam TTS unexpected response: %s", str(data)[:300])
+            raise ValueError(f"Sarvam TTS returned no audio: {str(data)[:200]}")
+        audio_b64 = data["audios"][0]
         wav_bytes = base64.b64decode(audio_b64)
         return _wav_to_pcm(wav_bytes)
 
@@ -385,14 +391,20 @@ async def _send_audio_response(
     language: str,
 ) -> None:
     """Generate TTS for *text* and stream it back over the WebSocket."""
-    await ws.send_text(_json.dumps({"type": "response_text", "text": text}))
+    try:
+        await ws.send_text(_json.dumps({"type": "response_text", "text": text}))
+    except Exception:
+        return  # Socket already closed — nothing to send
     try:
         tts_pcm = await _demo_tts(text, voice, language)
         for i in range(0, len(tts_pcm), _DEMO_CHUNK_SIZE):
             await ws.send_bytes(tts_pcm[i : i + _DEMO_CHUNK_SIZE])
     except Exception as tts_err:
-        log.warning("TTS generation failed: %s", tts_err)
-    await ws.send_text(_json.dumps({"type": "audio_end"}))
+        log.warning("TTS generation failed (%s): %s", type(tts_err).__name__, tts_err)
+    try:
+        await ws.send_text(_json.dumps({"type": "audio_end"}))
+    except Exception:
+        pass  # Socket closed during TTS — client already knows
 
 
 @app.websocket("/ws")

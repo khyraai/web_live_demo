@@ -111,10 +111,31 @@ VOICE_MAP: dict[str, str] = {
 }
 DEFAULT_DEMO_VOICE = "simran"
 
-# BCP-47 language codes for the demo. The frontend sends en / en-US / en-GB;
-# Sarvam uses en-IN for all English variants.
+# BCP-47 language codes for the demo. Supports codes with or without -IN suffix.
 DEMO_BCP47: dict[str, str] = {
     "en": "en-IN",
+    "en-IN": "en-IN",
     "en-US": "en-IN",
     "en-GB": "en-IN",
+    "hi": "hi-IN",
+    "hi-IN": "hi-IN",
+    "kn": "kn-IN",
+    "kn-IN": "kn-IN",
+    "ta": "ta-IN",
+    "ta-IN": "ta-IN",
+    "te": "te-IN",
+    "te-IN": "te-IN",
+    "ml": "ml-IN",
+    "ml-IN": "ml-IN",
+    "bn": "bn-IN",
+    "bn-IN": "bn-IN",
+    "gu": "gu-IN",
+    "gu-IN": "gu-IN",
+    "mr": "mr-IN",
+    "mr-IN": "mr-IN",
+    "pa": "pa-IN",
+    "pa-IN": "pa-IN",
+    "od": "od-IN",
+    "od-IN": "od-IN",
 }
+
