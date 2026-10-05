@@ -266,27 +266,41 @@ DEMO_PROMPTS: dict[tuple[str, str], dict[str, str]] = {
 }
 
 
-def build_demo_prompt(role: str, domain: str) -> str:
+def build_demo_prompt(role: str, domain: str, agent_name: str | None = None) -> str:
     """Return the full system prompt for a website demo session.
 
     Looks up the (role, domain) pair in DEMO_PROMPTS and appends the universal
-    voice-call style rules.  Falls back to the dental clinic persona if the
-    combination is unknown.
+    voice-call style rules. Falls back to the dental clinic persona if the
+    combination is unknown. Dynamically replaces the default name with agent_name.
     """
     key = (role, domain)
     entry = DEMO_PROMPTS.get(key)
     if entry is None:
         entry = DEMO_PROMPTS[("front_desk", "dental_clinic")]
-    return entry["prompt"] + DEMO_STYLE_SUFFIX
+    prompt = entry["prompt"]
+    if agent_name and entry.get("name"):
+        default_name = entry["name"]
+        prompt = prompt.replace(f"You are {default_name}", f"You are {agent_name}")
+        prompt = prompt.replace(default_name, agent_name)
+    return prompt + DEMO_STYLE_SUFFIX
 
 
-def get_demo_greeting(role: str, domain: str) -> str:
-    """Return the opening greeting for a website demo session."""
+def get_demo_greeting(role: str, domain: str, agent_name: str | None = None) -> str:
+    """Return the opening greeting for a website demo session.
+
+    Dynamically replaces the default name with agent_name.
+    """
     key = (role, domain)
     entry = DEMO_PROMPTS.get(key)
     if entry is None:
         entry = DEMO_PROMPTS[("front_desk", "dental_clinic")]
-    return entry["greeting"]
+    greeting = entry["greeting"]
+    if agent_name and entry.get("name"):
+        default_name = entry["name"]
+        greeting = greeting.replace(f"I'm {default_name}", f"I'm {agent_name}")
+        greeting = greeting.replace(f"I am {default_name}", f"I am {agent_name}")
+        greeting = greeting.replace(default_name, agent_name)
+    return greeting
 
 
 if __name__ == "__main__":

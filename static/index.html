@@ -4,149 +4,200 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Khyra AI | Realtime Voice AI Demo</title>
-  <meta name="description" content="Standalone browser-based LiveKit voice AI demonstration with real-time multilingual conversational capabilities.">
-  <link rel="stylesheet" href="/static/style.css">
+  <meta name="description" content="Khyra AI - Low-latency conversational AI streaming directly in your browser over LiveKit WebRTC.">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="app-background">
-    <div class="glow-orb glow-top-left"></div>
-    <div class="glow-orb glow-bottom-right"></div>
-  </div>
+  <div class="demo-page-wrapper">
+    <!-- Main Modal / Card -->
+    <main class="demo-card">
+      
+      <!-- Top Eyebrow Label -->
+      <div class="demo-eyebrow">LIVE DEMO</div>
 
-  <main class="demo-wrapper">
-    <!-- Header -->
-    <header class="demo-header">
-      <div class="brand-badge">
-        <span class="brand-dot"></span>
-        <span>KHYRA VOICE AI</span>
-      </div>
-      <h1 class="demo-title">Realtime Voice AI Demo</h1>
-      <p class="demo-subtitle">Low-latency conversational AI streaming directly in your browser over WebRTC.</p>
-    </header>
+      <!-- Two-Column Interactive Layout -->
+      <div class="demo-content-grid">
+        
+        <!-- Left Column: Dark Forest Green Configuration Panel -->
+        <section class="config-panel" id="config-panel">
+          <div class="config-inner">
+            
+            <!-- 2x2 Dropdowns Grid -->
+            <div class="controls-grid">
+              
+              <!-- Field 1: Agent Role -->
+              <div class="field-item">
+                <label for="role-select" class="field-label">AGENT ROLE</label>
+                <div class="select-container">
+                  <select id="role-select" class="styled-select" aria-label="Agent Role">
+                    <!-- Populated via app.js -->
+                  </select>
+                  <svg class="select-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
 
-    <!-- Error Alert Box -->
-    <div id="error-banner" class="alert-box alert-error hidden" role="alert">
-      <div class="alert-icon">⚠️</div>
-      <div class="alert-content">
-        <h4 id="error-title">Connection Error</h4>
-        <p id="error-message">Unable to connect to the voice server.</p>
-        <div id="error-action" class="alert-action hidden">
-          <button id="error-dismiss-btn" class="btn btn-secondary btn-sm">Dismiss</button>
-        </div>
-      </div>
-    </div>
+              <!-- Field 2: Industry -->
+              <div class="field-item">
+                <label for="domain-select" class="field-label">INDUSTRY</label>
+                <div class="select-container">
+                  <select id="domain-select" class="styled-select" aria-label="Industry">
+                    <!-- Populated dynamically via app.js -->
+                  </select>
+                  <svg class="select-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
 
-    <!-- Main Card -->
-    <section class="demo-card glass-panel">
-      <!-- Status Bar -->
-      <div class="card-status-bar">
-        <div class="status-indicator-group">
-          <div id="connection-pill" class="status-pill status-disconnected">
-            <span class="status-dot"></span>
-            <span id="connection-status-text">Disconnected</span>
-          </div>
+              <!-- Field 3: Language -->
+              <div class="field-item">
+                <label for="language-select" class="field-label">LANGUAGE</label>
+                <div class="select-container">
+                  <select id="language-select" class="styled-select" aria-label="Language">
+                    <!-- Populated via app.js -->
+                  </select>
+                  <svg class="select-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
 
-          <div id="agent-state-pill" class="status-pill status-idle">
-            <span class="agent-dot"></span>
-            <span id="agent-state-text">Ready to Connect</span>
-          </div>
-        </div>
+              <!-- Field 4: Voice -->
+              <div class="field-item">
+                <label for="voice-select" class="field-label">VOICE</label>
+                <div class="select-container">
+                  <select id="voice-select" class="styled-select" aria-label="Voice">
+                    <!-- Populated via app.js -->
+                  </select>
+                  <svg class="select-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+              </div>
 
-        <div class="telemetry-info">
-          <span id="room-tag" class="meta-tag hidden">Room: <strong id="room-id-val">-</strong></span>
-          <span id="latency-tag" class="meta-tag hidden">RTT: <strong id="latency-val">0ms</strong></span>
-        </div>
-      </div>
-
-      <!-- Voice Visualization Orb -->
-      <div class="visualizer-container">
-        <div id="voice-orb" class="voice-orb orb-idle">
-          <div class="orb-core">
-            <div class="orb-wave wave-1"></div>
-            <div class="orb-wave wave-2"></div>
-            <div class="orb-wave wave-3"></div>
-            <div class="orb-icon">
-              <svg id="orb-mic-icon" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <line x1="12" y1="19" x2="12" y2="22"></line>
-              </svg>
             </div>
+
+            <!-- Active Configuration Badges / Pills -->
+            <div class="pills-container" id="pills-container">
+              <span class="config-pill" id="pill-role">Front Desk</span>
+              <span class="config-pill" id="pill-domain">Dental Clinic</span>
+              <span class="config-pill" id="pill-language">English</span>
+              <span class="config-pill" id="pill-voice">Kavya · Female</span>
+            </div>
+
           </div>
-        </div>
 
-        <canvas id="audio-visualizer-canvas" class="visualizer-canvas" width="480" height="64"></canvas>
-        <div id="agent-caption" class="agent-caption">Click "Start Conversation" to begin.</div>
+          <!-- Bottom Action Area -->
+          <div class="config-actions">
+            <!-- Idle State Button -->
+            <button id="start-btn" class="action-btn btn-start" aria-label="Start Conversation">
+              <span>Start conversation</span>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+
+            <!-- Connecting State Button -->
+            <button id="connecting-btn" class="action-btn btn-connecting hidden" disabled aria-label="Connecting">
+              <svg class="spinner-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25" stroke="currentColor"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor"></path>
+              </svg>
+              <span>Connecting...</span>
+            </button>
+
+            <!-- Active / Talking In-Call Controls -->
+            <div id="active-controls" class="active-controls-group hidden">
+              <button id="end-btn" class="action-btn btn-end" aria-label="End Conversation">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <rect x="5" y="5" width="14" height="14" rx="2"></rect>
+                </svg>
+                <span>End conversation</span>
+              </button>
+              <button id="mute-btn" class="action-btn btn-mute-icon" aria-label="Mute / Unmute" title="Toggle Microphone Mute">
+                <svg id="mic-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
+                <svg id="mic-off-icon" class="hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                  <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+                  <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+                  <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Error & Ended State Button (Close & reconfigure) -->
+            <button id="reconfigure-btn" class="action-btn btn-reconfigure hidden" aria-label="Close and reconfigure">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+              <span>Close &amp; reconfigure</span>
+            </button>
+
+            <!-- Disclaimer Notice -->
+            <p class="data-disclaimer">This demo does not store any data.</p>
+          </div>
+
+        </section>
+
+        <!-- Right Column: Visualizer Orb, Status, Agent & Domain Persona Info -->
+        <section class="display-panel" id="display-panel">
+          
+          <!-- Organic Siri Glowing Orb Canvas -->
+          <div class="orb-stage">
+            <canvas id="siri-orb-canvas" width="400" height="400" aria-label="Voice activity visualizer"></canvas>
+          </div>
+
+          <!-- Dynamic Status Text -->
+          <div id="status-message" class="status-message status-idle">
+            Ready to connect
+          </div>
+
+          <!-- Agent Persona & Industry Branding -->
+          <div class="persona-branding">
+            <h2 id="agent-display-title" class="agent-title">Kavya · Front Desk</h2>
+            <p id="agent-display-industry" class="agent-domain">Dental Clinic</p>
+          </div>
+
+        </section>
+
       </div>
+    </main>
 
-      <!-- Controls -->
-      <div class="controls-panel">
-        <button id="start-btn" class="btn btn-primary btn-lg" aria-label="Start Conversation">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-          <span>Start Conversation</span>
-        </button>
-
-        <button id="end-btn" class="btn btn-danger btn-lg hidden" aria-label="End Conversation" disabled>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <rect x="6" y="6" width="12" height="12" rx="2"/>
-          </svg>
-          <span>End Conversation</span>
-        </button>
-
-        <button id="mute-btn" class="btn btn-secondary btn-icon hidden" aria-label="Mute Microphone" disabled title="Mute/Unmute Microphone">
-          <svg id="mic-on-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" y1="19" x2="12" y2="22"></line>
-          </svg>
-          <svg id="mic-off-icon" class="hidden" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
-            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
-            <line x1="12" y1="19" x2="12" y2="22"></line>
-          </svg>
-          <span id="mute-label">Mute</span>
-        </button>
-      </div>
-
-      <!-- Languages Supported Badge -->
-      <div class="supported-languages">
-        <span class="lang-title">Supported Languages:</span>
-        <div class="lang-pills">
-          <span class="lang-tag active">English</span>
-          <span class="lang-tag">हिन्दी</span>
-          <span class="lang-tag">தமிழ்</span>
-          <span class="lang-tag">తెలుగు</span>
-          <span class="lang-tag">ಕನ್ನಡ</span>
-          <span class="lang-tag">മലയാളം</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Activity & Diagnostic Drawer -->
-    <details class="diagnostics-drawer glass-panel">
+    <!-- Diagnostics & LiveKit Session Telemetry Drawer (collapsible, subtle) -->
+    <details class="telemetry-drawer">
       <summary class="drawer-header">
-        <span>Session Activity & Audio Logs</span>
-        <span class="drawer-arrow">▼</span>
+        <span class="drawer-label">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Session Telemetry &amp; Logs
+        </span>
+        <div class="drawer-meta-pills">
+          <span id="room-tag" class="meta-pill hidden">Room: <strong id="room-id-val">-</strong></span>
+          <span id="latency-tag" class="meta-pill hidden">RTT: <strong id="latency-val">0ms</strong></span>
+          <span class="drawer-caret">▼</span>
+        </div>
       </summary>
-      <div class="drawer-body">
-        <div id="activity-log" class="activity-log">
-          <div class="log-entry log-system">Voice demo initialized. Awaiting user interaction.</div>
+      <div class="drawer-content">
+        <div id="activity-log" class="activity-log-box">
+          <div class="log-row log-system">LiveKit WebRTC voice interface loaded. Ready.</div>
         </div>
       </div>
     </details>
+  </div>
 
-    <footer class="demo-footer">
-      <p>Powered by LiveKit WebRTC &bull; Multi-language Indic AI &bull; Phase 1 Web Integration</p>
-    </footer>
-  </main>
-
-  <!-- Audio element for playing the agent speech stream -->
+  <!-- Audio sink for remote agent speech streaming -->
   <audio id="agent-audio-sink" autoplay playsinline></audio>
 
   <!-- LiveKit Client SDK (Local bundle with fallback) -->

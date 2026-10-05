@@ -26,10 +26,10 @@ Type=simple
 WorkingDirectory=/opt/voice-agent
 EnvironmentFile=/opt/voice-agent/.env
 
-# Run uvicorn on localhost:8080 — Nginx proxies 443 → 8080
+# Run uvicorn on localhost:8085 — Nginx proxies 443 → 8085
 ExecStart=/opt/voice-agent/.venv/bin/python -m uvicorn server:app \
     --host 127.0.0.1 \
-    --port 8080 \
+    --port 8085 \
     --workers 1 \
     --log-level info
 

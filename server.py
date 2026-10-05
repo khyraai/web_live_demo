@@ -62,6 +62,7 @@ from config import (
     SARVAM_STT_MODEL,
     SARVAM_TTS_MODEL,
     VOICE_MAP,
+    get_voice_name,
     WEB_SERVER_HOST,
     WEB_SERVER_PORT,
 )
@@ -93,6 +94,10 @@ class TokenRequest(BaseModel):
     room_name: Optional[str] = None
     participant_name: Optional[str] = None
     participant_identity: Optional[str] = None
+    role: Optional[str] = "front_desk"
+    domain: Optional[str] = "dental_clinic"
+    language: Optional[str] = "en"
+    voice_id: Optional[str] = "voice_2"
 
 
 class TokenResponse(BaseModel):
@@ -157,11 +162,28 @@ async def create_token(req: TokenRequest = TokenRequest()):
     participant_identity = req.participant_identity or f"user-{uuid.uuid4().hex[:8]}"
     participant_name = req.participant_name or "Web Visitor"
 
+    metadata_json = _json.dumps({
+        "role": req.role or "front_desk",
+        "domain": req.domain or "dental_clinic",
+        "language": req.language or "en",
+        "voice_id": req.voice_id or "voice_2",
+    })
+
+    # Persist session metadata locally for reliable cross-process access by agent worker
+    try:
+        session_dir = Path(__file__).parent / "data" / "sessions"
+        session_dir.mkdir(parents=True, exist_ok=True)
+        (session_dir / f"{room_name}.json").write_text(metadata_json, encoding="utf-8")
+        log.info("Persisted session config to data/sessions/%s.json: %s", room_name, metadata_json)
+    except Exception as e:
+        log.warning("Could not persist session file: %s", e)
+
     log.info(
-        "Creating token for room=%s identity=%s name=%s",
+        "Creating token for room=%s identity=%s name=%s meta=%s",
         room_name,
         participant_identity,
         participant_name,
+        metadata_json,
     )
 
     try:
@@ -170,6 +192,7 @@ async def create_token(req: TokenRequest = TokenRequest()):
             AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
             .with_identity(participant_identity)
             .with_name(participant_name)
+            .with_metadata(metadata_json)
             .with_grants(
                 VideoGrants(
                     room_join=True,
@@ -181,7 +204,7 @@ async def create_token(req: TokenRequest = TokenRequest()):
             )
             .with_room_config(
                 RoomConfiguration(
-                    agents=[RoomAgentDispatch(agent_name=AGENT_NAME)]
+                    agents=[RoomAgentDispatch(agent_name=AGENT_NAME, metadata=metadata_json)]
                 )
             )
             .with_ttl(timedelta(minutes=15))
@@ -197,9 +220,13 @@ async def create_token(req: TokenRequest = TokenRequest()):
             )
             try:
                 await lkapi.agent_dispatch.create_dispatch(
-                    CreateAgentDispatchRequest(agent_name=AGENT_NAME, room=room_name)
+                    CreateAgentDispatchRequest(
+                        agent_name=AGENT_NAME,
+                        room=room_name,
+                        metadata=metadata_json,
+                    )
                 )
-                log.info("Agent dispatch requested for room %s", room_name)
+                log.info("Agent dispatch requested for room %s with metadata %s", room_name, metadata_json)
             finally:
                 await lkapi.aclose()
         except Exception as dispatch_err:
@@ -233,6 +260,12 @@ async def end_session(req: EndSessionRequest):
         return EndSessionResponse(status="ended_locally", room_name=req.room_name)
 
     log.info("Ending session for room: %s", req.room_name)
+    try:
+        session_file = Path(__file__).parent / "data" / "sessions" / f"{req.room_name}.json"
+        if session_file.exists():
+            session_file.unlink()
+    except Exception:
+        pass
     try:
         lkapi = LiveKitAPI(
             url=LIVEKIT_URL,
@@ -372,8 +405,14 @@ async def _demo_tts(text: str, voice: str, language: str) -> bytes:
                 "enable_preprocessing": True,
             },
         )
-        resp.raise_for_status()
-        audio_b64 = resp.json()["audios"][0]
+        if resp.status_code != 200:
+            log.error("Sarvam TTS error %s: %s", resp.status_code, resp.text[:300])
+            resp.raise_for_status()
+        data = resp.json()
+        if "audios" not in data or not data["audios"]:
+            log.error("Sarvam TTS unexpected response: %s", str(data)[:300])
+            raise ValueError(f"Sarvam TTS returned no audio: {str(data)[:200]}")
+        audio_b64 = data["audios"][0]
         wav_bytes = base64.b64decode(audio_b64)
         return _wav_to_pcm(wav_bytes)
 
@@ -385,14 +424,20 @@ async def _send_audio_response(
     language: str,
 ) -> None:
     """Generate TTS for *text* and stream it back over the WebSocket."""
-    await ws.send_text(_json.dumps({"type": "response_text", "text": text}))
+    try:
+        await ws.send_text(_json.dumps({"type": "response_text", "text": text}))
+    except Exception:
+        return  # Socket already closed — nothing to send
     try:
         tts_pcm = await _demo_tts(text, voice, language)
         for i in range(0, len(tts_pcm), _DEMO_CHUNK_SIZE):
             await ws.send_bytes(tts_pcm[i : i + _DEMO_CHUNK_SIZE])
     except Exception as tts_err:
-        log.warning("TTS generation failed: %s", tts_err)
-    await ws.send_text(_json.dumps({"type": "audio_end"}))
+        log.warning("TTS generation failed (%s): %s", type(tts_err).__name__, tts_err)
+    try:
+        await ws.send_text(_json.dumps({"type": "audio_end"}))
+    except Exception:
+        pass  # Socket closed during TTS — client already knows
 
 
 @app.websocket("/ws")
@@ -432,13 +477,14 @@ async def websocket_demo(ws: WebSocket):
         voice_id = init_data.get("voice_id", "voice_2")
 
         # ---- 2. Build session config -----------------------------------------
-        system_prompt = build_demo_prompt(role, domain)
         voice = VOICE_MAP.get(voice_id, DEFAULT_DEMO_VOICE)
-        greeting_text = get_demo_greeting(role, domain)
+        voice_name = get_voice_name(voice_id)
+        system_prompt = build_demo_prompt(role, domain, agent_name=voice_name)
+        greeting_text = get_demo_greeting(role, domain, agent_name=voice_name)
 
         log.info(
-            "Demo session: role=%s domain=%s lang=%s voice=%s(%s)",
-            role, domain, language, voice_id, voice,
+            "Demo session: role=%s domain=%s lang=%s voice=%s(%s) name=%s",
+            role, domain, language, voice_id, voice, voice_name,
         )
 
         # ---- 3. Send ready ---------------------------------------------------

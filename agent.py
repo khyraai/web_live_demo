@@ -52,6 +52,7 @@ from config import (
     AGENT_NAME,
     AUDIO_SAMPLE_RATE,
     BCP47,
+    DEFAULT_DEMO_VOICE,
     DEFAULT_LANGUAGE,
     MAX_ENDPOINTING_DELAY,
     MAX_TOKENS,
@@ -68,12 +69,16 @@ from config import (
     SARVAM_TTS_VOICE,
     SUPPORTED_LANGUAGES,
     VAD_MIN_SILENCE_S,
+    VOICE_MAP,
+    get_voice_name,
 )
 from prompts import (
     GREETINGS,
     HOT_PERSONA,
     STYLE_NOTES,
+    build_demo_prompt,
     build_instructions,
+    get_demo_greeting,
 )
 from tools import AppointmentTools
 
@@ -116,14 +121,14 @@ def _build_llm() -> openai.LLM:
     )
 
 
-def _build_session(language: str) -> AgentSession:
+def _build_session(language: str, voice: str = SARVAM_TTS_VOICE) -> AgentSession:
     """Wire the whole cascade for a starting language and return the session.
 
     Silero VAD + Sarvam STT/TTS locked to `language`, OpenAI/Groq LLM, Maya's tools,
     and tight endpointing. The session owns the tools and default pipeline;
     each LangAgent later overrides only STT + TTS to relock the language.
     """
-    bcp47 = BCP47[language]
+    bcp47 = BCP47.get(language, "en-IN")
     return AgentSession(
         vad=silero.VAD.load(
             min_silence_duration=VAD_MIN_SILENCE_S,
@@ -140,7 +145,7 @@ def _build_session(language: str) -> AgentSession:
         tts=sarvam.TTS(
             model=SARVAM_TTS_MODEL,        # bulbul:v3
             target_language_code=bcp47,
-            speaker=SARVAM_TTS_VOICE,      # "simran"
+            speaker=voice,
             api_key=SARVAM_API_KEY,
         ),
         tools=[],  # Disabled tools as requested
@@ -216,6 +221,31 @@ class LangAgent(Agent):
         self.code = code
 
 
+class DemoAgent(Agent):
+    """Dynamic demo agent parameterised by system prompt, language code, and voice."""
+
+    def __init__(self, instructions: str, code: str, voice: str) -> None:
+        bcp47 = BCP47.get(code, "en-IN")
+        super().__init__(
+            instructions=instructions,
+            stt=sarvam.STT(
+                model=SARVAM_STT_MODEL,
+                mode="codemix",
+                language=bcp47,
+                sample_rate=AUDIO_SAMPLE_RATE,
+                api_key=SARVAM_API_KEY,
+            ),
+            tts=sarvam.TTS(
+                model=SARVAM_TTS_MODEL,
+                target_language_code=bcp47,
+                speaker=voice,
+                api_key=SARVAM_API_KEY,
+            ),
+        )
+        self.code = code
+        self.voice = voice
+
+
 # --- metrics -> JSONL --------------------------------------------------------
 def _make_metrics_handler(call_id: str):
     """Build a metrics_collected handler that logs per-stage latency as JSONL."""
@@ -251,20 +281,76 @@ def _make_metrics_handler(call_id: str):
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
+    participant = None
     # In browser WebRTC sessions, wait for the participant to connect before speaking greeting
     if not ctx.is_fake_job:
         log.info("Agent connected to room %s. Waiting for participant...", ctx.room.name)
         participant = await ctx.wait_for_participant()
         log.info("Participant connected: identity=%s name=%s", participant.identity, participant.name)
 
-    session = _build_session(DEFAULT_LANGUAGE)
+    # Read configuration from metadata
+    meta_str = ""
+    # 1. Local session file (direct process communication)
+    session_file = Path(__file__).parent / "data" / "sessions" / f"{ctx.room.name}.json"
+    if session_file.exists():
+        try:
+            meta_str = session_file.read_text(encoding="utf-8")
+            log.info("Loaded session configuration from local file %s: %s", session_file.name, meta_str)
+        except Exception as file_err:
+            log.warning("Could not read local session file %s: %s", session_file.name, file_err)
+
+    # 2. LiveKit Job metadata
+    if not meta_str and hasattr(ctx, "job") and getattr(ctx.job, "metadata", None):
+        meta_str = ctx.job.metadata
+        log.info("Loaded session configuration from job.metadata: %s", meta_str)
+
+    # 3. LiveKit Participant metadata
+    if not meta_str and participant and getattr(participant, "metadata", None):
+        meta_str = participant.metadata
+        log.info("Loaded session configuration from participant.metadata: %s", meta_str)
+
+    # 4. LiveKit Room metadata
+    if not meta_str and hasattr(ctx, "room") and getattr(ctx.room, "metadata", None):
+        meta_str = ctx.room.metadata
+        log.info("Loaded session configuration from room.metadata: %s", meta_str)
+
+    role = "front_desk"
+    domain = "dental_clinic"
+    language = DEFAULT_LANGUAGE
+    voice_id = "voice_2"
+
+    if meta_str:
+        try:
+            m = json.loads(meta_str)
+            role = m.get("role") or role
+            domain = m.get("domain") or domain
+            language = m.get("language") or language
+            voice_id = m.get("voice_id") or voice_id
+            log.info("Parsed configuration successfully: role=%s, domain=%s, language=%s, voice=%s", role, domain, language, voice_id)
+        except Exception as parse_err:
+            log.warning("Could not parse metadata '%s': %s", meta_str, parse_err)
+    else:
+        log.warning("No metadata found for room %s. Using default (%s/%s)", ctx.room.name, role, domain)
+
+    lang_code = language.split("-")[0] if "-" in language else language
+    if lang_code not in SUPPORTED_LANGUAGES:
+        lang_code = "en"
+
+    voice_speaker = VOICE_MAP.get(voice_id, DEFAULT_DEMO_VOICE)
+    voice_name = get_voice_name(voice_id)
+    system_prompt = build_demo_prompt(role, domain, agent_name=voice_name)
+    greeting = get_demo_greeting(role, domain, agent_name=voice_name)
+
+    log.info(
+        "Starting demo agent for room=%s: role=%s domain=%s lang=%s voice=%s(%s) name=%s",
+        ctx.room.name, role, domain, lang_code, voice_id, voice_speaker, voice_name,
+    )
+
+    session = _build_session(lang_code, voice=voice_speaker)
     session.on("metrics_collected", _make_metrics_handler(ctx.room.name))
 
-    await session.start(agent=LangAgent(DEFAULT_LANGUAGE), room=ctx.room)
-
-    # Speak the opening greeting. update_agent (on language switch) is silent, but
-    # the FIRST agent must be told to greet too -- so we say it explicitly here.
-    await session.say(GREETINGS[DEFAULT_LANGUAGE])
+    await session.start(agent=DemoAgent(system_prompt, lang_code, voice_speaker), room=ctx.room)
+    await session.say(greeting)
 
 
 if __name__ == "__main__":
