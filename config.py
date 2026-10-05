@@ -111,6 +111,30 @@ VOICE_MAP: dict[str, str] = {
 }
 DEFAULT_DEMO_VOICE = "simran"
 
+# Display names for each demo voice
+VOICE_NAMES: dict[str, str] = {
+    "voice_1": "Priya",
+    "voice_2": "Kavya",
+    "voice_3": "Neha",
+    "voice_4": "Simran",
+    "voice_5": "Pooja",
+    "voice_6": "Rahul",
+    "voice_7": "Rohan",
+    "voice_8": "Aditya",
+    "voice_9": "Amit",
+    "voice_10": "Ratan",
+}
+
+
+def get_voice_name(voice_id: str) -> str:
+    """Return the display persona name for a voice ID (e.g. voice_2 -> Kavya)."""
+    if voice_id in VOICE_NAMES:
+        return VOICE_NAMES[voice_id]
+    for v_id, name in VOICE_NAMES.items():
+        if voice_id.strip().lower() == name.lower():
+            return name
+    return "Kavya"
+
 # BCP-47 language codes for the demo. Supports codes with or without -IN suffix.
 DEMO_BCP47: dict[str, str] = {
     "en": "en-IN",

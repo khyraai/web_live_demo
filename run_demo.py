@@ -30,7 +30,7 @@ def main():
 
     python_bin = sys.executable
 
-    server_cmd = [python_bin, "-m", "uvicorn", "server:app", "--host", str(WEB_SERVER_HOST), "--port", str(WEB_SERVER_PORT)]
+    server_cmd = [python_bin, "-m", "uvicorn", "server:app", "--host", str(WEB_SERVER_HOST), "--port", str(WEB_SERVER_PORT), "--reload"]
     agent_cmd = [python_bin, "agent.py", "dev"]
 
     processes = []
@@ -44,10 +44,10 @@ def main():
             processes.append(p_agent)
         else:
             print("=" * 70)
-            print("  🚀 Starting Khyra Web Voice AI Demo")
-            print(f"  • Web Interface: http://localhost:{WEB_SERVER_PORT}")
-            print(f"  • LiveKit URL:   {LIVEKIT_URL}")
-            print(f"  • Agent Name:    {AGENT_NAME}")
+            print("  [*] Starting Khyra Web Voice AI Demo")
+            print(f"  * Web Interface: http://localhost:{WEB_SERVER_PORT}")
+            print(f"  * LiveKit URL:   {LIVEKIT_URL}")
+            print(f"  * Agent Name:    {AGENT_NAME}")
             print("=" * 70)
 
             p_server = run_process(server_cmd, "Web Demo Server")
