@@ -317,7 +317,7 @@ async def entrypoint(ctx: JobContext) -> None:
     role = "front_desk"
     domain = "dental_clinic"
     language = DEFAULT_LANGUAGE
-    voice_id = "voice_2"
+    voice_id = "voice_4"
 
     if meta_str:
         try:
@@ -337,13 +337,12 @@ async def entrypoint(ctx: JobContext) -> None:
         lang_code = "en"
 
     voice_speaker = VOICE_MAP.get(voice_id, DEFAULT_DEMO_VOICE)
-    voice_name = get_voice_name(voice_id)
-    system_prompt = build_demo_prompt(role, domain, agent_name=voice_name)
-    greeting = get_demo_greeting(role, domain, agent_name=voice_name)
+    system_prompt = build_demo_prompt(role, domain)
+    greeting = get_demo_greeting(role, domain)
 
     log.info(
-        "Starting demo agent for room=%s: role=%s domain=%s lang=%s voice=%s(%s) name=%s",
-        ctx.room.name, role, domain, lang_code, voice_id, voice_speaker, voice_name,
+        "Starting demo agent for room=%s: role=%s domain=%s lang=%s voice=%s(%s)",
+        ctx.room.name, role, domain, lang_code, voice_id, voice_speaker,
     )
 
     session = _build_session(lang_code, voice=voice_speaker)
