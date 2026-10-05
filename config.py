@@ -97,17 +97,17 @@ DEMO_WS_PORT = int(os.getenv("DEMO_WS_PORT", "8000"))
 # Map frontend voice_id values to actual Sarvam TTS (bulbul:v3) speaker names.
 # Available speakers: meera, pavithra, maitreyi, simran, arvind, amol, karthik,
 # abhishek, arjun, amartya.
-VOICE_MAP: dict[str, str] = {
-    "voice_1": "meera",       # Professional Female
-    "voice_2": "simran",      # Warm Female
-    "voice_3": "pavithra",    # Direct Female
-    "voice_4": "maitreyi",    # Balanced Female
-    "voice_5": "amartya",     # Calm Female (fallback)
-    "voice_6": "arvind",      # Executive Male
-    "voice_7": "amol",        # Warm Male
-    "voice_8": "karthik",     # Neutral Male
-    "voice_9": "abhishek",    # Authoritative Male
-    "voice_10": "arjun",      # Conversational Male
+VOICE_MAP = {
+    "voice_1": "priya",
+    "voice_2": "kavya",
+    "voice_3": "neha",
+    "voice_4": "simran",
+    "voice_5": "pooja",
+    "voice_6": "rahul",
+    "voice_7": "rohan",
+    "voice_8": "aditya",
+    "voice_9": "amit",
+    "voice_10": "ratan",
 }
 DEFAULT_DEMO_VOICE = "simran"
 
